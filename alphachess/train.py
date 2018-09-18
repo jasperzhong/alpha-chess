@@ -72,7 +72,7 @@ class Trainer(object):
 
         policy_loss_func = nn.CrossEntropyLoss()
         value_loss_func = nn.MSELoss()
-
+        min_val_loss = 100
         for epoch in range(self.epoch0, self.epoch0 + self.config.training.epoches):
             logger.info('epoch %d start!' % epoch)
             total_loss = 0.0
@@ -95,16 +95,16 @@ class Trainer(object):
                 loss.backward()
                 optimizer.step()
 
-                total_loss += loss.item()
-                policy_loss += policy_loss.item()
-                value_loss += value_loss.item()
+                
+                policy_loss = policy_loss.item()
+                value_loss = value_loss.item()
+                total_loss = loss.item()
+
                 writer.add_scalar('data/train/policy_loss', policy_loss, n_iter)
                 writer.add_scalar('data/train/value_loss', value_loss, n_iter)
                 writer.add_scalar('data/train/total_loss', total_loss, n_iter)
 
-            total_loss = 0.0
-            policy_loss = 0.0
-            value_loss = 0.0
+            loss_sum = 0.0
             with torch.no_grad():
                 for n_iter, sampled_batch in enumerate(self.valid_loader):
                     s = sampled_batch['s'].to(device)
@@ -117,12 +117,21 @@ class Trainer(object):
 
                     loss = policy_loss + value_loss
 
-                    total_loss += loss.item()
-                    policy_loss += policy_loss.item()
-                    value_loss += value_loss.item()
+                    policy_loss = policy_loss.item()
+                    value_loss = value_loss.item()
+                    total_loss = loss.item()
+                    loss_sum += total_loss
                     writer.add_scalar('data/val/policy_loss', policy_loss, n_iter)
                     writer.add_scalar('data/val/value_loss', value_loss, n_iter)
                     writer.add_scalar('data/val/total_loss', total_loss, n_iter)
-            
+            loss_sum /= len(self.valid_loader)
+
+            if loss_sum < min_val_loss:
+                min_val_loss = loss_sum
+                with open(os.path.join(self.config.resources.best_model_dir, "epoch.txt"), "w") as file:
+                    file.write(epoch)
+                torch.save(self.model)
+                logger.info("Epoch %d model saved!" % epoch)
+
             writer.export_scalars_to_json("./all_scalars.json")
         writer.close()
