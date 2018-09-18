@@ -7,9 +7,11 @@ import time
 import multiprocessing
 
 import numpy as np
+import keras
+from keras.models import load_model
 import chess 
 
-from .model import AlphaChess
+from .model import ChessModel
 from .config import Config
 from .utils import convert_board_to_plane, get_all_possible_moves, first_person_view_fen, get_feature_plane, \
     is_black_turn, first_person_view_policy, evaluate_board
