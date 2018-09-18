@@ -23,8 +23,6 @@ class ResourceConfig(object):
 
     sl_processed_data_dir = os.path.join(_sl_base_data_dir, "processed") #json files
 
-    value_data_dir = os.path.join(_base_data_dir, "tmp")
-
     json_size = 1024 #moves in a json file
 
     min_elo = 600.0 #min_elo weight = 0

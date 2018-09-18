@@ -1,0 +1,4 @@
+pytorch
+h5py
+numpy
+python-chess
