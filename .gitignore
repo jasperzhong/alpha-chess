@@ -1,3 +1,6 @@
 *.pyc
 /data/
 *.json
+*.ipynb
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
