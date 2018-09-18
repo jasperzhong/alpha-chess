@@ -12,7 +12,7 @@ import chess
 from .model import AlphaChess
 from .config import Config
 from .utils import convert_board_to_plane, get_all_possible_moves, first_person_view_fen, get_feature_plane, \
-    is_black_turn, first_person_view_policy, evaluate_board
+    is_black_turn
 
 
 logger = logging.getLogger(__name__)

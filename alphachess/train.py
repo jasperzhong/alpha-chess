@@ -5,16 +5,21 @@ import os
 import json
 from queue import Queue
 
+import numpy as np
 import torch
 import torch.nn 
 import torch.nn.functional as F 
 import torch.optim
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
+from tensorboardX import SummaryWriter
 
 from .model import AlphaChess
 from .config import Config
-from .utils import Batchgen
+from .utils import ChessDataset
 
 logger = logging.getLogger(__name__)
+
 
 class Trainer(object):
     def __init__(self, config: Config):
@@ -29,51 +34,97 @@ class Trainer(object):
         if not self.model:
             try:
                 # h5 file (model and weights)
-                self.model = load_model(os.path.join(self.config.resources.best_model_dir, "best_model.h5"))
+                self.model = torch.load(os.path.join(self.config.resources.best_model_dir, "best_model.h5"))
                 logger.info('load last trained best model.')
             except OSError:
-                self.ChessModel = ChessModel(config=self.config)
-                self.ChessModel.build()
-                self.model = self.ChessModel.model
-                self.model.compile(optimizer=keras.optimizers.adam(lr=self.config.training.learning_rate),
-                                   loss='mean_squared_error')
+                self.model = AlphaChess(config=self.config)
                 logger.info('A new model is born.')
 
-
-        self.data_files = os.listdir(self.config.resources.value_data_dir)
-        if not self.data_files:
-            logger.fatal("No Porcessed data!")
-            raise RuntimeError("No processed data!")
+        
 
         with open(os.path.join(self.config.resources.best_model_dir, "epoch.txt"), "r") as file:
             self.epoch0 = int(file.read()) + 1
+        
+        self.dataset = ChessDataset(self.config)
+        size = len(self.dataset)
+        indices = list(range(size))
+        split = int(np.floor(0.1 * size))
+        np.random.shuffle(indices)
+        
+        train_idx, valid_idx = indices[split:], indices[:split]
+        train_sampler = SubsetRandomSampler(train_idx)
+        valid_sampler = SubsetRandomSampler(valid_idx)
+
+        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size,
+                                    shuffle=True, num_workers=4, sampler=train_sampler)
+        
+        self.valid_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size,
+                                    shuffle=True, num_workers=4, sampler=valid_sampler)
+
         self.training()
 
     def training(self):
+        device = torch.device("gpu" if torch.cuda.is_available() else "cpu")
+
+        writer = SummaryWriter()
+
+        optimizer = optim.Adam(self.model.parameters(), 
+                               lr=self.config.training.learning_rate,
+                               weight_decay=self.config.training.l2_reg)
+
+        policy_loss_func = nn.CrossEntropy()
+        value_loss_func = nn.MSELoss()
 
         for epoch in range(self.epoch0, self.epoch0 + self.config.training.epoches):
             logger.info('epoch %d start!' % epoch)
+            total_loss = 0.0
+            policy_loss = 0.0
+            value_loss = 0.0
 
-            for data_file in self.data_files:
-                with open(os.path.join(self.config.resources.value_data_dir, data_file), "r", encoding='utf-8') as file:
-                    data = json.load(file)
-                    batches = Batchgen(data, self.config.training.batch_size)
-                    for feature_plane_array, value_array in batches:
-                        history_callback = self.model.fit(feature_plane_array, value_array,
-                                        validation_split=0.1, shuffle=True, verbose=2)
-                        loss = history_callback.history["loss"][0]
-                        val_loss =  history_callback.history["val_loss"][0]
-                        logger.debug("loss: %f val_loss: %f " % (loss, val_loss))
+            for n_iter, sampled_batch in enumerate(self.train_loader):
+                optimizer.zero_grad()
 
-            self.model.save(os.path.join(self.config.resources.best_model_dir, "best_model.h5"))
-            with open(os.path.join(self.config.resources.best_model_dir, "epoch.txt"), "w") as file:
-                file.write(str(epoch))
+                s = sampled_batch['s'].to(device)
+                a = sampled_batch['a'].to(device)
+                r = sampled_batch['r'].to(device)
 
+                p, v = self.model(s)
 
-    def f1_score(self):
-        # Not urgent
-        pass
+                policy_loss = policy_loss_func(p, a)
+                value_loss = value_loss_func(v, r)
 
-    def elo(self):
-        # Not urgent
-        pass
+                loss = policy_loss + value_loss
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item()
+                policy_loss += policy_loss.item()
+                value_loss += value_loss.item()
+                writer.add_scalar('data/train/policy_loss', policy_loss, n_iter)
+                writer.add_scalar('data/train/value_loss', value_loss, n_iter)
+                writer.add_scalar('data/train/total_loss', total_loss, n_iter)
+
+            total_loss = 0.0
+            policy_loss = 0.0
+            value_loss = 0.0
+            with torch.no_grad():
+                for n_iter, sampled_batch in enumerate(self.valid_loader):
+                    s = sampled_batch['s'].to(device)
+                    a = sampled_batch['a'].to(device)
+                    r = sampled_batch['r'].to(device)
+
+                    p, v = self.model(s)
+                    policy_loss = policy_loss_func(p, a)
+                    value_loss = value_loss_func(v, r)
+
+                    loss = policy_loss + value_loss
+
+                    total_loss += loss.item()
+                    policy_loss += policy_loss.item()
+                    value_loss += value_loss.item()
+                    writer.add_scalar('data/val/policy_loss', policy_loss, n_iter)
+                    writer.add_scalar('data/val/value_loss', value_loss, n_iter)
+                    writer.add_scalar('data/val/total_loss', total_loss, n_iter)
+            
+            writer.export_scalars_to_json("./all_scalars.json")
+        writer.close()
