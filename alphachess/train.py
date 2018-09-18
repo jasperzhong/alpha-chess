@@ -7,9 +7,9 @@ from queue import Queue
 
 import numpy as np
 import torch
-import torch.nn 
+import torch.nn as nn 
 import torch.nn.functional as F 
-import torch.optim
+import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
@@ -55,24 +55,22 @@ class Trainer(object):
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)
 
-        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size,
-                                    shuffle=True, num_workers=4, sampler=train_sampler)
+        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=train_sampler)
         
-        self.valid_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size,
-                                    shuffle=True, num_workers=4, sampler=valid_sampler)
+        self.valid_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=valid_sampler)
 
         self.training()
 
     def training(self):
-        device = torch.device("gpu" if torch.cuda.is_available() else "cpu")
-
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self. model.to(device)
         writer = SummaryWriter()
 
         optimizer = optim.Adam(self.model.parameters(), 
                                lr=self.config.training.learning_rate,
                                weight_decay=self.config.training.l2_reg)
 
-        policy_loss_func = nn.CrossEntropy()
+        policy_loss_func = nn.CrossEntropyLoss()
         value_loss_func = nn.MSELoss()
 
         for epoch in range(self.epoch0, self.epoch0 + self.config.training.epoches):

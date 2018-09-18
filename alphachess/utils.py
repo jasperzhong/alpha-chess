@@ -195,5 +195,5 @@ class ChessDataset(Dataset):
         k = self.move_hash[data['a']]
         data['a'] = k
         
-        data['r'] = torch.Tensor(data['r'])
+        data['r'] = torch.FloatTensor([data['r']])
         return data 
