@@ -42,7 +42,7 @@ class ModelConfig(object):
 
 class TrainerConfig(object):
     """Training Configuration"""
-    batch_size = 2048
+    batch_size = 3072
     learning_rate = 0.001
     epoches = 100
     save_interval = 1

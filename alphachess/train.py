@@ -56,22 +56,22 @@ class Trainer(object):
 
         self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=train_sampler)
         
-        self.valid_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=valid_sampler)
+        self.valid_loader = DataLoader(self.dataset, batch_size=512, num_workers=4, sampler=valid_sampler)
 
         self.training()
 
     def training(self):
-        device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if torch.cuda.device_count() > 1:
             logger.info("mutil gpu %d " % torch.cuda.device_count())
-            self.model = nn.DataParallel(self.model, device_ids=[2,3])
+            self.model = nn.DataParallel(self.model)
         self. model.to(device)
         writer = SummaryWriter()
 
         optimizer = optim.Adam(self.model.parameters(), 
                                lr=self.config.training.learning_rate,
                                weight_decay=self.config.training.l2_reg)
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.2)
 
         policy_loss_func = nn.CrossEntropyLoss()
         value_loss_func = nn.MSELoss()
@@ -94,7 +94,7 @@ class Trainer(object):
                 policy_loss = policy_loss_func(p, a)
                 value_loss = value_loss_func(v, r)
 
-                loss = policy_loss + 3*value_loss
+                loss = policy_loss + 1.5*value_loss
                 loss.backward()
                 optimizer.step()
 
@@ -106,6 +106,9 @@ class Trainer(object):
                 writer.add_scalar('data/train/policy_loss', policy_loss, n_iter)
                 writer.add_scalar('data/train/value_loss', value_loss, n_iter)
                 writer.add_scalar('data/train/total_loss', total_loss, n_iter)
+
+                if (n_iter + 1) % 1500 == 0:
+                    scheduler.step()
 
             loss_sum = 0.0
             with torch.no_grad():
@@ -138,6 +141,6 @@ class Trainer(object):
                 logger.info("Epoch %d model saved!" % epoch)
 
             writer.export_scalars_to_json("./all_scalars.json")
-            scheduler.step()
+            
 
         writer.close()
