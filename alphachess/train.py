@@ -65,7 +65,7 @@ class Trainer(object):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if torch.cuda.device_count() > 1:
             logger.info("mutil gpu %d " % torch.cuda.device_count())
-            model = nn.DataParallel(model)
+            self.model = nn.DataParallel(self.model)
         self. model.to(device)
         writer = SummaryWriter()
 
@@ -94,7 +94,7 @@ class Trainer(object):
                 policy_loss = policy_loss_func(p, a)
                 value_loss = value_loss_func(v, r)
 
-                loss = policy_loss + value_loss
+                loss = policy_loss + 1.5*value_loss
                 loss.backward()
                 optimizer.step()
 
@@ -118,7 +118,7 @@ class Trainer(object):
                     policy_loss = policy_loss_func(p, a)
                     value_loss = value_loss_func(v, r)
 
-                    loss = policy_loss + value_loss
+                    loss = policy_loss + 1.5*value_loss
 
                     policy_loss = policy_loss.item()
                     value_loss = value_loss.item()
@@ -132,7 +132,7 @@ class Trainer(object):
             if loss_sum < min_val_loss:
                 min_val_loss = loss_sum
                 with open(os.path.join(self.config.resources.best_model_dir, "epoch.txt"), "w") as file:
-                    file.write(epoch)
+                    file.write(str(epoch))
                 torch.save(self.model)
                 logger.info("Epoch %d model saved!" % epoch)
 
