@@ -35,7 +35,7 @@ class ModelConfig(object):
     cnn_first_filter_size= 5
     cnn_filter_size = 3
     l2_regularizer = 1e-5
-    value_fc_size = 256
+    value_fc_size = 512
     drop_out_rate = 0.5
     features = 18
 

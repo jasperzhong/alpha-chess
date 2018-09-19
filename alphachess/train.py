@@ -40,7 +40,6 @@ class Trainer(object):
                 self.model = AlphaChess(config=self.config)
                 logger.info('A new model is born.')
 
-        
 
         with open(os.path.join(self.config.resources.best_model_dir, "epoch.txt"), "r") as file:
             self.epoch0 = int(file.read()) + 1
@@ -62,16 +61,17 @@ class Trainer(object):
         self.training()
 
     def training(self):
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
         if torch.cuda.device_count() > 1:
             logger.info("mutil gpu %d " % torch.cuda.device_count())
-            self.model = nn.DataParallel(self.model)
+            self.model = nn.DataParallel(self.model, device_ids=[2,3])
         self. model.to(device)
         writer = SummaryWriter()
 
         optimizer = optim.Adam(self.model.parameters(), 
                                lr=self.config.training.learning_rate,
                                weight_decay=self.config.training.l2_reg)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
         policy_loss_func = nn.CrossEntropyLoss()
         value_loss_func = nn.MSELoss()
@@ -94,7 +94,7 @@ class Trainer(object):
                 policy_loss = policy_loss_func(p, a)
                 value_loss = value_loss_func(v, r)
 
-                loss = policy_loss + 1.5*value_loss
+                loss = policy_loss + 3*value_loss
                 loss.backward()
                 optimizer.step()
 
@@ -124,9 +124,10 @@ class Trainer(object):
                     value_loss = value_loss.item()
                     total_loss = loss.item()
                     loss_sum += total_loss
-                    writer.add_scalar('data/val/policy_loss', policy_loss, n_iter)
-                    writer.add_scalar('data/val/value_loss', value_loss, n_iter)
-                    writer.add_scalar('data/val/total_loss', total_loss, n_iter)
+                
+                writer.add_scalar('data/val/policy_loss', policy_loss, epoch)
+                writer.add_scalar('data/val/value_loss', value_loss, epoch)
+                writer.add_scalar('data/val/total_loss', total_loss, epoch)
             loss_sum /= len(self.valid_loader)
 
             if loss_sum < min_val_loss:
@@ -137,4 +138,6 @@ class Trainer(object):
                 logger.info("Epoch %d model saved!" % epoch)
 
             writer.export_scalars_to_json("./all_scalars.json")
+            scheduler.step()
+
         writer.close()
