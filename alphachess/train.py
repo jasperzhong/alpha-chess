@@ -54,7 +54,7 @@ class Trainer(object):
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)
 
-        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=train_sampler)
+        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=16, sampler=train_sampler)
         
         self.valid_loader = DataLoader(self.dataset, batch_size=512, num_workers=4, sampler=valid_sampler)
 
@@ -137,7 +137,7 @@ class Trainer(object):
                 min_val_loss = loss_sum
                 with open(os.path.join(self.config.resources.best_model_dir, "epoch.txt"), "w") as file:
                     file.write(str(epoch))
-                torch.save(self.model)
+                torch.save(self.model, "data/model/checkpoint" + str(epoch) + ".pkl")
                 logger.info("Epoch %d model saved!" % epoch)
 
             writer.export_scalars_to_json("./all_scalars.json")
