@@ -96,6 +96,11 @@ class DataReader(object):
         while not next_game.is_end():
             next_game=next_game.variation(0)
             next_move = next_game.move.uci()
+            try:
+                k = self.move_hash[next_move]
+            except KeyError:
+                logger.fatal("keyerror % s" % next_move)
+                continue
             if(data_len % 2 == 0): #white move
                 self.data_buffer.append({"s":board.fen(), "a":next_move, "r":result})
             else: #black move

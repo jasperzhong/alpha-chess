@@ -62,7 +62,10 @@ class Trainer(object):
         self.training()
 
     def training(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.device_count() > 1:
+            logger.info("mutil gpu %d " % torch.cuda.device_count())
+            model = nn.DataParallel(model)
         self. model.to(device)
         writer = SummaryWriter()
 
