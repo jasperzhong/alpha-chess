@@ -4,6 +4,7 @@ import logging
 import os
 import random
 from functools import reduce
+from tqdm import tqdm
 
 import chess
 import numpy as np
@@ -71,6 +72,7 @@ label_len = len(labels)
 def is_black_turn(fen):
     return fen.split(' ')[1] == 'b'
 
+
 def get_board_string(board_fen_0):
 
     rows = board_fen_0.split('/')
@@ -84,7 +86,7 @@ def get_history_plane(board_fen):
 
     board_fen_list = board_fen.split(' ')
 
-    history_plane = torch.zeros(12, 8 , 8)
+    history_plane = np.zeros(shape=(12, 8, 8), dtype=np.float32)
 
     board_string = get_board_string(board_fen_list[0])
 
@@ -104,22 +106,22 @@ def get_auxilary_plane(board_fen):
     board_fen_list = board_fen.split(' ')
 
     en_passant_state = board_fen_list[3]
-    en_passant_plane = torch.zeros(8, 8)
+    en_passant_plane = np.zeros((8, 8), dtype=np.float32)
     if en_passant_state != '-':
         position = fen_positon_to_my_position(en_passant_state)
         en_passant_plane[position[0]][position[1]] = 1
     fifty_move_count = eval(board_fen_list[4])
-    fifty_move_plane = torch.full((8, 8), fifty_move_count)
+    fifty_move_plane = np.full((8, 8), fifty_move_count)
 
     castling_state = board_fen_list[2]
 
-    K_castling_plane = torch.full((8, 8), int('K' in castling_state))
-    Q_castling_plane = torch.full((8, 8), int('Q' in castling_state))
-    k_castling_plane = torch.full((8, 8), int('k' in castling_state))
-    q_castling_plane = torch.full((8, 8), int('q' in castling_state))
+    K_castling_plane = np.full((8, 8), int('K' in castling_state), dtype=np.float32)
+    Q_castling_plane = np.full((8, 8), int('Q' in castling_state), dtype=np.float32)
+    k_castling_plane = np.full((8, 8), int('k' in castling_state), dtype=np.float32)
+    q_castling_plane = np.full((8, 8), int('q' in castling_state), dtype=np.float32)
 
-    auxilary_plane = torch.stack((K_castling_plane, Q_castling_plane, k_castling_plane,
-                               q_castling_plane, fifty_move_plane, en_passant_plane), dim=0)
+    auxilary_plane = np.array([K_castling_plane, Q_castling_plane, k_castling_plane,
+                               q_castling_plane, fifty_move_plane, en_passant_plane])
 
     assert auxilary_plane.shape == (6, 8, 8)
     return auxilary_plane
@@ -129,7 +131,7 @@ def get_feature_plane(board_fen):
 
     history_plane = get_history_plane(board_fen)
     auxilary_plane = get_auxilary_plane(board_fen)
-    feature_plane = torch.cat((history_plane, auxilary_plane), 0)
+    feature_plane = np.vstack((history_plane, auxilary_plane))
     assert feature_plane.shape == (18, 8, 8)
     return feature_plane
 
@@ -168,32 +170,34 @@ def convert_board_to_plane(board_fen):
     
 class ChessDataset(Dataset):
     def __init__(self, config):
-        self.dataset = []
-        self.data_files = os.listdir(config.resources.sl_processed_data_dir)
+        dataset = []
+        data_files = os.listdir(config.resources.sl_processed_data_dir)
         
-        for data_file in self.data_files:
+        for data_file in data_files:
             with open(config.resources.sl_processed_data_dir + '/' + data_file, "r") as f:
                 data = json.load(f)
-            self.dataset.extend(data)
-    
+            dataset.extend(data)
+ 
         all_moves = get_all_possible_moves()
-        self.move_size = int(len(all_moves))
         self.move_hash = {move: i for (i, move) in enumerate(all_moves)}
+        
+        self.dataset = dataset
+        
     
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
         data = self.dataset[index]
-
+        batch = {}
+        
         if is_black_turn(data['s']):
             data['s'] = first_person_view_fen(data['s'], True)
             data['a'] = first_person_view_move(data['a'], True)
-
-        data['s'] = get_feature_plane(data['s'])
-
-        k = self.move_hash[data['a']]
-        data['a'] = k
         
-        data['r'] = torch.FloatTensor([data['r']])
-        return data 
+        batch['s'] = get_feature_plane(data['s']).astype(np.float32)
+        batch['a'] = self.move_hash[data['a']]
+        batch['r'] = np.array([data['r']], dtype=np.float32)
+        return batch
+    
+

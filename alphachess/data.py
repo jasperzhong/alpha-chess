@@ -114,9 +114,9 @@ class DataReader(object):
         return int: white_win: 1; black_win: -1; draw: 0;
         """
         if result == '1-0':
-            return 1
+            return 1.0
         elif result == '0-1':
-            return -1
+            return -1.0
         else:
             return 0
         

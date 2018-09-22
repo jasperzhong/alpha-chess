@@ -40,7 +40,7 @@ if __name__=="__main__":
         logger.info('CPU is running')
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     else:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0, 1, 2, 3"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "1, 3"
         logger.info('GPU is running')
 
     config.training.epoches = args.epoch
