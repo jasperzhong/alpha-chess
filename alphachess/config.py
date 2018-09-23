@@ -23,6 +23,8 @@ class ResourceConfig(object):
 
     sl_processed_data_dir = os.path.join(_sl_base_data_dir, "processed") #json files
 
+    rl_model_dir = os.path.join(_base_data_dir, "model/rl")
+
     json_size = 1024 #moves in a json file
 
     min_elo = 600.0 #min_elo weight = 0
@@ -59,6 +61,17 @@ class PlayerConfig(object):
     ai_move_dir = os.path.join(base_dir, "ai_move.txt")
     
 
+class RLConfig(object):
+    lr = 0.001
+    gamma = 0.99
+    tau = 1.00
+    entropy_coef = 0.01
+    value_loss_coef = 0.5
+    max_grad_norm = 50
+    num_processes = 4
+    num_steps = 75 
+    max_episode_length = 100 
+
 class Config(object):
     """Configurations"""
     CMD = ['train', 'play', 'data']
@@ -72,3 +85,6 @@ class Config(object):
     training = TrainerConfig()
 
     playing = PlayerConfig()
+
+    rl = RLConfig()
+
