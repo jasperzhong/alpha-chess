@@ -97,11 +97,3 @@ class ResidualBlock(nn.Module):
         residual = x
         out += residual
         return self.relu(out)
-    
-
-if __name__=='__main__':
-    x = torch.randn(32, 18, 8, 8)
-    from config import Config 
-    config = Config()
-    model = AlphaChess(config)
-    pi, V = model(x)

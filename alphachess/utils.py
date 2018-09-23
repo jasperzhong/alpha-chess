@@ -5,6 +5,7 @@ import os
 import random
 from functools import reduce
 from tqdm import tqdm
+from torchvision import transforms
 
 import chess
 import numpy as np
@@ -183,21 +184,24 @@ class ChessDataset(Dataset):
         
         self.dataset = dataset
         
+        self.transform = transforms.Compose([GetFeatures()])
+        
     
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
         data = self.dataset[index]
-        batch = {}
         
         if is_black_turn(data['s']):
             data['s'] = first_person_view_fen(data['s'], True)
             data['a'] = first_person_view_move(data['a'], True)
-        
-        batch['s'] = get_feature_plane(data['s']).astype(np.float32)
-        batch['a'] = self.move_hash[data['a']]
-        batch['r'] = np.array([data['r']], dtype=np.float32)
-        return batch
-    
 
+        s = self.transform(data['s'])   
+        a = self.move_hash[data['a']]
+        r = np.array([data['r']], dtype=np.float32)        
+        return s, a, r
+
+class GetFeatures(object):
+    def __call__(self, s):
+        return get_feature_plane(s).astype(np.float32)
