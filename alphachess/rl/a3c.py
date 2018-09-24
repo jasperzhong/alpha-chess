@@ -11,8 +11,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 
 from alphachess.model import AlphaChess
-from alphachess.utils import get_feature_plane, get_all_possible_moves, convert_board_to_plane, first_person_view_move,\
-first_person_view_fen
+from alphachess.utils import *
 
 
 def ensure_shared_grads(model, shared_model):
@@ -72,12 +71,14 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
 
             candidates = {}
             legal_moves = board.legal_moves
-            for move in legal_moves:
-                p = policy[0][move_hash[move.uci()]]
-                candidates[move] = p
-            candidate = sorted(candidates.items(), key=lambda x:x[1], reverse=True)[0]
-            action = candidate[0]
-            log_prob = log_prob[0][move_hash[action.uci()]]
+            legal_indices = [move_hash[move] for move in legal_moves]
+
+            prob = prob.gather(1, torch.LongTensor([legal_indices]))
+            action = prob.multinomial(1).item()  #注意应该是采样，而不是取最大的
+            log_prob = log_prob[0][action]
+
+            action = self.board.parse_uci(all_moves[action])
+
             board.push(action)
             node = node.add_variation(action)
 
@@ -115,18 +116,23 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
                 step_counter.value += 1
         
         result = board.result()
-        print(result)
         game.headers["Result"] = result
         if result == "1-0":
             rewards.append(1)
         elif result == "0-1":
             rewards.append(-1)
-        elif result == "1/2-1/2":
-            rewards.append(0)
+        elif result == "1/2-1/2":  # 和棋不进行反向传播
+            continue
+        else:
+            # 看子多子少
+            rewards.append(evaluate_board(board.fen()))
         
-        with lock:
-            game_counter.value += 1
-            print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
+       
+        if result != "*":  # 只允许赢棋/输棋记录棋谱
+            with lock:
+                game_counter.value += 1
+                print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
+        
         
         # 下完了，反向传播        
         R = torch.zeros(1, 1)
@@ -142,7 +148,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
 
             # Generalized Advantage Estimataion
             advantage = rewards[i] + args.gamma * values[i + 1] - values[i]
-            policy_loss -= log_probs[i] * advantage
+            gae = gae * args.gamma * args.tau + advantage
+
+            policy_loss -= log_probs[i] * gae + args.entropy_coef * entropies[i]  # 熵惩罚项
 
         optimizer.zero_grad()
         loss = policy_loss + args.value_loss_coef * value_loss
@@ -153,8 +161,8 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         optimizer.step()
 
         
-        # 每500迭代就更新一次模型
-        if game_counter.value % 500 == 0:
+        # 每50迭代就更新一次模型
+        if game_counter.value % 50 == 0:
             state = {"state_dict":shared_model.state_dict()}
             torch.save(state, "data/model/rl/alphachess_" + str(game_counter.value) + ".pth")
 

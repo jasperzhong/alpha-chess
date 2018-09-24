@@ -70,6 +70,24 @@ EXTEND_SPACE = {
 labels = get_all_possible_moves()
 label_len = len(labels)
 
+def evaluate_board(fen):
+    chess_piece_value = {'Q' : 14, 'R' : 5, 'B' : 3.25, 'K' : 3, 'N' : 3, 'P' : 1}
+    current_value = 0.0
+    total_value = 0.0
+    for ch in fen.split(' ')[0]:
+        if not ch.isalpha():
+            continue
+        if ch.isupper():
+            current_value += chess_piece_value[ch]
+            total_value += chess_piece_value[ch]
+        else:
+            current_value -= chess_piece_value[ch.upper()]
+            total_value += chess_piece_value[ch.upper()]
+
+    value_rate = current_value / total_value
+
+    return np.tanh(value_rate / 10.0)
+
 def is_black_turn(fen):
     return fen.split(' ')[1] == 'b'
 
