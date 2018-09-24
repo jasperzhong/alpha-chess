@@ -86,7 +86,7 @@ def evaluate_board(fen):
 
     value_rate = current_value / total_value
 
-    return np.tanh(value_rate / 10.0)
+    return float(np.tanh(value_rate))
 
 def is_black_turn(fen):
     return fen.split(' ')[1] == 'b'
