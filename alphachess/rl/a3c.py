@@ -127,7 +127,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             continue
         else:
             # 看子多子少
-            rewards.append(evaluate_board(board.fen()))
+            rewards[-1] = evaluate_board(board.fen())
         
        
         if result != "*":  # 只允许赢棋/输棋记录棋谱
