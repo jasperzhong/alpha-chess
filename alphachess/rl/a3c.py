@@ -69,15 +69,14 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
 
             entropy = -(log_prob * prob).sum(1, keepdim=True)
 
-            candidates = {}
             legal_moves = board.legal_moves
-            legal_indices = [move_hash[move] for move in legal_moves]
+            legal_indices = [move_hash[move.uci()] for move in legal_moves]
 
             prob = prob.gather(1, torch.LongTensor([legal_indices]))
             action = prob.multinomial(1).item()  #注意应该是采样，而不是取最大的
             log_prob = log_prob[0][action]
 
-            action = self.board.parse_uci(all_moves[action])
+            action = board.parse_uci(all_moves[action])
 
             board.push(action)
             node = node.add_variation(action)
@@ -95,14 +94,17 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             state = get_feature_plane(oppo_board.fen())
             state = state[np.newaxis, :].astype(np.float32)
             policy, v = model(torch.from_numpy(state))
+
+            prob = F.softmax(policy, dim=1)
             
-            candidates = {}
             legal_moves = oppo_board.legal_moves
-            for move in legal_moves:
-                p = policy[0][move_hash[move.uci()]]
-                candidates[move] = p
-            candidate = sorted(candidates.items(), key=lambda x:x[1], reverse=True)[0]
-            action = board.parse_uci(first_person_view_move(candidate[0].uci(), True)) 
+            legal_indices = [move_hash[move.uci()] for move in legal_moves]
+
+            prob = prob.gather(1, torch.LongTensor([legal_indices]))
+            action = prob.multinomial(1).item()  #注意应该是采样，而不是取最大的
+
+            action = board.parse_uci(first_person_view_move(all_moves[action], True))
+
             board.push(action)
             node = node.add_variation(action)
 
