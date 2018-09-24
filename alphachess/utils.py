@@ -151,7 +151,7 @@ def get_auxilary_plane(board_fen):
     is_seventyfive_moves_material_plane = np.full((8, 8), int(board.is_seventyfive_moves()), dtype=np.float32)
     is_fivefold_repetition_material_plane = np.full((8, 8), int(board.is_fivefold_repetition()), dtype=np.float32)
 
-    mobility_plane = np.full((8, 8), len(board.legal_moves), dtype=np.float32)
+    mobility_plane = np.full((8, 8), len([move for move in board.legal_moves]), dtype=np.float32)
     is_check_plane = np.full((8, 8), int(board.is_check()), dtype=np.float32)
 
 
