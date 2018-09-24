@@ -58,7 +58,6 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         game = chess.pgn.Game()
         node = game
 
-        cnt = 0
         # a new episode start!
         for step in range(args.num_steps):
             state = get_feature_plane(board.fen())
@@ -115,14 +114,15 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
                 break
 
             rewards.append(0)   # 下的时候还是0
-            cnt += 1
+            
+            with lock:
+                step_counter.value += 1
             
         
         result = board.result()
         game.headers["Result"] = result
 
         with lock:
-            step_counter.value += cnt
             game_counter.value += 1
             print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
 
