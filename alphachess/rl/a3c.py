@@ -78,9 +78,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             log_prob = log_prob[0][action]
 
             action = board.parse_uci(all_moves[action])
-            print(action)
+            #print(action)
             board.push(action)
-            print(board)
+            #print(board)
             node = node.add_variation(action)
 
             values.append(v)
@@ -106,9 +106,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             action = legal_indices[prob.multinomial(1).item()]  #注意应该是采样，而不是取最大的
 
             action = board.parse_uci(first_person_view_move(all_moves[action], True))
-            print(action)
+            #print(action)
             board.push(action)
-            print(board)
+            #print(board)
             node = node.add_variation(action)
 
             if board.is_game_over():
