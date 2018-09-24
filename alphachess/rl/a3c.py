@@ -119,13 +119,13 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             
         
         result = board.result()
+        game.headers["Result"] = result
 
         with lock:
             step_counter.value += cnt
             game_counter.value += 1
             print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
 
-        game.headers["Result"] = result
         if result == "1-0":
             rewards.append(1)
         elif result == "0-1":
