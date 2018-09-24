@@ -10,7 +10,7 @@ from alphachess.rl.a3c import test, train
 from alphachess.rl.shared_optim import SharedAdam
 
 parser = argparse.ArgumentParser(description='A3C')
-parser.add_argument('--lr', type=float, default=0.0001,
+parser.add_argument('--lr', type=float, default=0.001,
                     help='learning rate (default: 0.0001)')
 parser.add_argument('--gamma', type=float, default=0.99,
                     help='discount factor for rewards (default: 0.99)')
@@ -26,8 +26,8 @@ parser.add_argument('--seed', type=int, default=1,
                     help='random seed (default: 1)')
 parser.add_argument('--num-processes', type=int, default=1,
                     help='how many training processes to use (default: 4)')
-parser.add_argument('--num-steps', type=int, default=100,
-                    help='number of forward steps in A3C (default: 100)')
+parser.add_argument('--num-steps', type=int, default=75,
+                    help='number of forward steps in A3C (default: 75)')
 parser.add_argument('--max-episode-length', type=int, default=1000000,
                     help='maximum length of an episode (default: 1000000)')
 parser.add_argument('--env-name', default='PongDeterministic-v4',
@@ -43,15 +43,6 @@ if __name__=="__main__":
     args = parser.parse_args()
     torch.manual_seed(args.seed)
     config = Config()
-    config.rl.lr = args.lr 
-    config.rl.gamma = args.gamma
-    config.rl.tau = args.tau
-    config.rl.entropy_coef = args.entropy_coef
-    config.rl.value_loss_coef = args.value_loss_coef
-    config.rl.max_grad_norm = args.max_grad_norm
-    config.rl.num_processes = args.num_processes
-    config.rl.num_steps = args.num_steps
-    config.rl.max_episode_length = args.max_episode_length
     
     shared_model = AlphaChess(config)
     shared_model.share_memory()

@@ -22,7 +22,7 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
-def train(rank, args, shared_model, step_counter, game_counter, lock, config, optimizer=None):
+def train(rank, args, shared_model, step_counter, game_counter, lock, config , optimizer=None):
     '''
     己方永远执白
     '''
@@ -41,6 +41,11 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
     
     while True:
         board.reset()
+        values = []
+        log_probs = []
+        rewards = []
+        entropies = []
+
         # Sync with the shared model
         model.load_state_dict(shared_model.state_dict())
 
@@ -49,11 +54,6 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         
         choise = int(random.random() * len(model_list))
         oppo_model.load_state_dict(torch.load(os.path.join(config.resources.rl_model_dir, model_list[choise]))['state_dict'])
-
-        values = []
-        log_probs = []
-        rewards = []
-        entropies = []
 
         game = chess.pgn.Game()
         node = game
@@ -122,10 +122,6 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         result = board.result()
         game.headers["Result"] = result
 
-        with lock:
-            game_counter.value += 1
-            print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
-
         if result == "1-0":
             rewards.append(1)
         elif result == "0-1":
@@ -139,7 +135,13 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         
         # 下完了，反向传播        
         R = torch.zeros(1, 1)
-        values.append(values[-1])
+        if not board.is_game_over():
+            state = get_feature_plane(board.fen())
+            state = state[np.newaxis, :].astype(np.float32)
+            _, v = model(torch.from_numpy(state))
+            R = v
+        
+        values.append(R)
         gae = torch.zeros(1, 1)
         policy_loss = 0
         value_loss = 0
@@ -163,11 +165,13 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         ensure_shared_grads(model, shared_model)
         optimizer.step()
 
-        
-        # 每50迭代就更新一次模型
-        if game_counter.value % 50 == 0:
-            state = {"state_dict":shared_model.state_dict()}
-            torch.save(state, "data/model/rl/alphachess_" + str(game_counter.value) + ".pth")
+        with lock:
+            game_counter.value += 1
+            print(game, file=open("data/self_play/{0}.pgn".format(game_counter.value), "w"), end="\n\n")
+            # 每50迭代就更新一次模型
+            if game_counter.value % 50 == 0:
+                state = {"state_dict":shared_model.state_dict()}
+                torch.save(state, "data/model/rl/alphachess_{0}.pth".format(game_counter.value))
 
 
 def test(rank, args, shared_model,  step_counter, game_counter ,lock, config):
