@@ -129,9 +129,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
         elif result == "1/2-1/2":  # 和棋不进行反向传播
             continue
         else:
-            # 看子多子少
-            rewards[-1] = evaluate_board(board.fen())
-        print(rewards[-1])
+            # 看子多子少 很小的一个reward
+            rewards[-1] = evaluate_board(board.fen()) / 10
+        
         
         # 下完了，反向传播        
         R = torch.zeros(1, 1)

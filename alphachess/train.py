@@ -4,7 +4,7 @@ import logging
 import os
 import json
 from queue import Queue
-import gc
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -93,7 +93,7 @@ class Trainer(object):
                 policy_loss = policy_loss_func(p, a)
                 value_loss = value_loss_func(v, r)
                 
-                loss = policy_loss + 1.5*value_loss
+                loss = policy_loss + 0.5*value_loss
                 loss.backward()
                 optimizer.step()
                 
@@ -127,7 +127,7 @@ class Trainer(object):
                             cnt += 1
                         policy_loss_sum /= cnt
                         value_loss_sum /= cnt
-                        total_loss = policy_loss + 1.5*value_loss
+                        total_loss = policy_loss + 0.5*value_loss
                         writer.add_scalar('data/val/policy_loss', policy_loss_sum, n_iter + epoch*(self.train_size//self.config.training.batch_size) )
                         writer.add_scalar('data/val/value_loss', value_loss_sum, n_iter + epoch*(self.train_size//self.config.training.batch_size) )
                         writer.add_scalar('data/val/total_loss', total_loss, n_iter + epoch*(self.train_size//self.config.training.batch_size) )
@@ -135,12 +135,13 @@ class Trainer(object):
                         if total_loss < min_val_loss:
                             min_val_loss = total_loss.item()
 
-                            state = {
-                                'net':self.model.state_dict(),
-                                'loss':min_val_loss,
-                                'epoch':epoch,
-                                'iter':n_iter
-                            }
+                            state_dict = model.state_dict()
+                            new_state_dict = OrderedDict()
+                            for k, v in state_dict.items():
+                                name = k[7:] # remove `module.`
+                                new_state_dict[name] = v
+                            
+                            state = {"state_dict":new_state_dict}
                             torch.save(state, 'data/model/best_model.pth')
                             logger.info("Epoch %d  Iter %d model saved!" % (epoch, n_iter))
                     

@@ -132,17 +132,36 @@ def get_auxilary_plane(board_fen):
     fifty_move_count = eval(board_fen_list[4])
     fifty_move_plane = np.full((8, 8), fifty_move_count)
 
+    total_move_count = eval(board_fen_list[5])
+    total_move_plane = np.full((8, 8), total_move_count)
+
     castling_state = board_fen_list[2]
 
     K_castling_plane = np.full((8, 8), int('K' in castling_state), dtype=np.float32)
     Q_castling_plane = np.full((8, 8), int('Q' in castling_state), dtype=np.float32)
     k_castling_plane = np.full((8, 8), int('k' in castling_state), dtype=np.float32)
     q_castling_plane = np.full((8, 8), int('q' in castling_state), dtype=np.float32)
+    
+    board = chess.Board(board_fen)
+
+    is_gameover_plnae = np.full((8, 8), int(board.is_game_over()), dtype=np.float32)
+    is_checkmate_plane = np.full((8, 8), int(board.is_checkmate()), dtype=np.float32)
+    is_stalemate_plane = np.full((8, 8), int(board.is_stalemate()), dtype=np.float32)
+    is_insufficient_material_plane = np.full((8, 8), int(board.is_insufficient_material()), dtype=np.float32)
+    is_seventyfive_moves_material_plane = np.full((8, 8), int(board.is_seventyfive_moves()), dtype=np.float32)
+    is_fivefold_repetition_material_plane = np.full((8, 8), int(board.is_fivefold_repetition()), dtype=np.float32)
+
+    mobility_plane = np.full((8, 8), len(board.legal_moves), dtype=np.float32)
+    is_check_plane = np.full((8, 8), int(board.is_check()), dtype=np.float32)
+
 
     auxilary_plane = np.array([K_castling_plane, Q_castling_plane, k_castling_plane,
-                               q_castling_plane, fifty_move_plane, en_passant_plane])
+                               q_castling_plane, fifty_move_plane, en_passant_plane,
+                               total_move_plane, is_gameover_plnae, is_checkmate_plane,
+                               is_stalemate_plane, is_insufficient_material_plane, is_seventyfive_moves_material_plane,
+                               is_fivefold_repetition_material_plane, mobility_plane, is_check_plane])
 
-    assert auxilary_plane.shape == (6, 8, 8)
+    assert auxilary_plane.shape == (15, 8, 8)
     return auxilary_plane
 
 
@@ -150,8 +169,9 @@ def get_feature_plane(board_fen):
 
     history_plane = get_history_plane(board_fen)
     auxilary_plane = get_auxilary_plane(board_fen)
+
     feature_plane = np.vstack((history_plane, auxilary_plane))
-    assert feature_plane.shape == (18, 8, 8)
+    assert feature_plane.shape == (27, 8, 8)
     return feature_plane
 
 def first_person_view_fen(board_fen, flip):

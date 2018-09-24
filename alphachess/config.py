@@ -37,15 +37,15 @@ class ModelConfig(object):
     cnn_first_filter_size= 5
     cnn_filter_size = 3
     l2_regularizer = 1e-5
-    value_fc_size = 512
+    value_fc_size = 256
     drop_out_rate = 0.5
-    features = 18
+    features = 27
 
 
 class TrainerConfig(object):
     """Training Configuration"""
     batch_size = 4096
-    learning_rate = 0.002
+    learning_rate = 0.003
     epoches = 10
     save_interval = 1
     test_interval = 5
