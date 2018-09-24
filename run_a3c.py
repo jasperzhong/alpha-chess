@@ -10,8 +10,8 @@ from alphachess.rl.a3c import test, train
 from alphachess.rl.shared_optim import SharedAdam
 
 parser = argparse.ArgumentParser(description='A3C')
-parser.add_argument('--lr', type=float, default=0.001,
-                    help='learning rate (default: 0.0001)')
+parser.add_argument('--lr', type=float, default=0.002,
+                    help='learning rate (default: 0.002)')
 parser.add_argument('--gamma', type=float, default=0.99,
                     help='discount factor for rewards (default: 0.99)')
 parser.add_argument('--tau', type=float, default=1.00,
