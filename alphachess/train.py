@@ -1,23 +1,24 @@
 """ChessWarrior train model"""
 
+import json
 import logging
 import os
-import json
-from queue import Queue
+import time
 from collections import OrderedDict
+from queue import Queue
 
 import numpy as np
 import torch
-import torch.nn as nn 
-import torch.nn.functional as F 
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
+from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-from tensorboardX import SummaryWriter
 
-from .model import AlphaChess
 from .config import Config
-from .utils import ChessDataset,get_feature_plane
+from .model import AlphaChess
+from .utils import ChessDataset, get_feature_plane
 
 logger = logging.getLogger(__name__)
 
@@ -135,14 +136,14 @@ class Trainer(object):
                         if total_loss < min_val_loss:
                             min_val_loss = total_loss.item()
 
-                            state_dict = model.state_dict()
+                            state_dict = self.model.state_dict()
                             new_state_dict = OrderedDict()
                             for k, v in state_dict.items():
                                 name = k[7:] # remove `module.`
                                 new_state_dict[name] = v
                             
                             state = {"state_dict":new_state_dict}
-                            torch.save(state, 'data/model/best_model.pth')
+                            torch.save(state, 'data/model/best_model{0}.pth'.format(time.time()))
                             logger.info("Epoch %d  Iter %d model saved!" % (epoch, n_iter))
                     
                 
