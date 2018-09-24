@@ -37,7 +37,7 @@ parser.add_argument('--no-shared', default=False,
 
 
 if __name__=="__main__":
-    
+    os.environ['OMP_NUM_THREADS'] = '1'    
     os.environ['CUDA_VISIBLE_DEVICES'] = ""  #disable GPU
     
     args = parser.parse_args()
