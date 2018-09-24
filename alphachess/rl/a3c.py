@@ -73,7 +73,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             legal_indices = [move_hash[move.uci()] for move in legal_moves]
 
             prob = prob.gather(1, torch.LongTensor([legal_indices]))
-            action = prob.multinomial(1).item()  #注意应该是采样，而不是取最大的
+            action = legal_indices[prob.multinomial(1).item()]  #注意应该是采样，而不是取最大的
             log_prob = log_prob[0][action]
 
             action = board.parse_uci(all_moves[action])
@@ -101,7 +101,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             legal_indices = [move_hash[move.uci()] for move in legal_moves]
 
             prob = prob.gather(1, torch.LongTensor([legal_indices]))
-            action = prob.multinomial(1).item()  #注意应该是采样，而不是取最大的
+            action = legal_indices[prob.multinomial(1).item()]  #注意应该是采样，而不是取最大的
 
             action = board.parse_uci(first_person_view_move(all_moves[action], True))
 
