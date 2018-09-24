@@ -58,6 +58,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         game = chess.pgn.Game()
         node = game
 
+        cnt = 0
         # a new episode start!
         for step in range(args.num_steps):
             state = get_feature_plane(board.fen())
@@ -77,8 +78,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             log_prob = log_prob[0][action]
 
             action = board.parse_uci(all_moves[action])
-
+            print(action)
             board.push(action)
+            print(board)
             node = node.add_variation(action)
 
             values.append(v)
@@ -93,7 +95,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             oppo_board = chess.Board(first_person_view_fen(board.fen(), True))
             state = get_feature_plane(oppo_board.fen())
             state = state[np.newaxis, :].astype(np.float32)
-            policy, v = model(torch.from_numpy(state))
+            policy, v = oppo_model(torch.from_numpy(state))
 
             prob = F.softmax(policy, dim=1)
             
@@ -104,20 +106,25 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
             action = legal_indices[prob.multinomial(1).item()]  #注意应该是采样，而不是取最大的
 
             action = board.parse_uci(first_person_view_move(all_moves[action], True))
-
+            print(action)
             board.push(action)
+            print(board)
             node = node.add_variation(action)
 
             if board.is_game_over():
                 break
 
             rewards.append(0)   # 下的时候还是0
-
-            # 下了一步
-            with lock:
-                step_counter.value += 1
+            cnt += 1
+            
         
         result = board.result()
+
+        with lock:
+            step_counter.value += cnt
+            game_counter.value += 1
+            print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
+
         game.headers["Result"] = result
         if result == "1-0":
             rewards.append(1)
@@ -128,13 +135,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config, op
         else:
             # 看子多子少
             rewards[-1] = evaluate_board(board.fen())
-        
-       
-        if result != "*":  # 只允许赢棋/输棋记录棋谱
-            with lock:
-                game_counter.value += 1
-                print(game, file=open("data/self_play/" + str(game_counter.value) + ".pgn", "w"), end="\n\n")
-        
+        print(rewards[-1])
         
         # 下完了，反向传播        
         R = torch.zeros(1, 1)
