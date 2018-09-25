@@ -33,7 +33,7 @@ class AlphaChess(nn.Module):
         self.policy_head = nn.Sequential(
             nn.Conv2d(
                 self.config.model.cnn_filter_num,
-                2,
+                4,
                 1
             ),
             nn.BatchNorm2d(2),
@@ -44,16 +44,16 @@ class AlphaChess(nn.Module):
         self.value_head = nn.Sequential(
             nn.Conv2d(
                 self.config.model.cnn_filter_num,
-                1,
+                2,
                 1
             ),
             nn.BatchNorm2d(1),
             nn.ReLU()
         )
 
-        self.policy_linear = nn.Linear(8*8*2, 1968)
+        self.policy_linear = nn.Linear(8*8*4, 1968)
 
-        self.value_linear1 = nn.Linear(8*8*1, 256)
+        self.value_linear1 = nn.Linear(8*8*2, 256)
         self.value_linear2 = nn.Linear(256, 1)
 
     def forward(self, x):
@@ -61,10 +61,10 @@ class AlphaChess(nn.Module):
         s = self.res_layer(s)
 
         pi = self.policy_head(s)
-        pi = self.policy_linear(pi.view(-1, 8*8*2))
+        pi = self.policy_linear(pi.view(-1, 8*8*4))
 
         V = self.value_head(s)
-        V = self.value_linear1(V.view(-1, 8*8*1))
+        V = self.value_linear1(V.view(-1, 8*8*2))
         V = F.relu(V)
         V = self.value_linear2(V)
         V = torch.tanh(V)

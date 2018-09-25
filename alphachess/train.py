@@ -70,11 +70,8 @@ class Trainer(object):
 
         policy_loss_func = nn.CrossEntropyLoss()
         value_loss_func = nn.MSELoss()
-        try:
-            with open("data/model/min_val_loss","r") as f:
-                min_val_loss = float(f.read())
-        except:
-            min_val_loss = 100.0
+        
+        min_val_loss = 100.0
         
         for epoch in range(self.epoch0, self.epoch0 + self.config.training.epoches):
             logger.info('epoch %d start!' % epoch)
@@ -94,7 +91,7 @@ class Trainer(object):
                 policy_loss = policy_loss_func(p, a)
                 value_loss = value_loss_func(v, r)
                 
-                loss = policy_loss + 0.5*value_loss
+                loss = 1.25*policy_loss + value_loss
                 loss.backward()
                 optimizer.step()
                 
@@ -128,7 +125,7 @@ class Trainer(object):
                             cnt += 1
                         policy_loss_sum /= cnt
                         value_loss_sum /= cnt
-                        total_loss = policy_loss + 0.5*value_loss
+                        total_loss = 1.25*policy_loss + value_loss
                         writer.add_scalar('data/val/policy_loss', policy_loss_sum, n_iter + epoch*(self.train_size//self.config.training.batch_size) )
                         writer.add_scalar('data/val/value_loss', value_loss_sum, n_iter + epoch*(self.train_size//self.config.training.batch_size) )
                         writer.add_scalar('data/val/total_loss', total_loss, n_iter + epoch*(self.train_size//self.config.training.batch_size) )
@@ -147,7 +144,7 @@ class Trainer(object):
                             logger.info("Epoch %d  Iter %d model saved!" % (epoch, n_iter))
                     
                 
-                if (n_iter + 1) % 1000 == 0:
+                if (n_iter + 1) % (1000 + epoch * 1000)== 0:
                     scheduler.step()
  
         writer.close()
