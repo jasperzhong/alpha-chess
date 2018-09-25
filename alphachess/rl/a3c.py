@@ -73,6 +73,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             legal_indices = [move_hash[move.uci()] for move in legal_moves]
 
             prob = prob.gather(1, torch.LongTensor([legal_indices]))
+            prob = F.softmax(prob, dim=1) # 本来按理不需要这个。。。直到我遇到下一行报错
             action = legal_indices[prob.multinomial(1).item()]  #注意应该是采样，而不是取最大的
             log_prob = log_prob[0][action]
 
@@ -100,8 +101,8 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             
             legal_moves = oppo_board.legal_moves
             legal_indices = [move_hash[move.uci()] for move in legal_moves]
-
             prob = prob.gather(1, torch.LongTensor([legal_indices]))
+            prob = F.softmax(prob, dim=1)
             action = legal_indices[prob.multinomial(1).item()]  #注意应该是采样，而不是取最大的
 
             action = board.parse_uci(first_person_view_move(all_moves[action], True))
@@ -170,7 +171,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             print(game, file=open("data/self_play/{0}.pgn".format(game_counter.value), "w"), end="\n\n")
             # 每50迭代就更新一次模型
             if game_counter.value % 50 == 0:
-                state = {"state_dict":shared_model.state_dict()}
+                state = {"state_dict":shared_model.state_dict(),
+                        "game_count":game_counter.value,
+                        "step_num":step_counter.value}
                 torch.save(state, "data/model/rl/alphachess_{0}.pth".format(game_counter.value))
 
 

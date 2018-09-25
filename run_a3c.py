@@ -46,8 +46,10 @@ if __name__=="__main__":
     
     shared_model = AlphaChess(config)
     shared_model.share_memory()
-    
-    shared_model.load_state_dict(torch.load(os.path.join(config.resources.rl_model_dir, "alphachess_1.pth"))['state_dict'])
+   
+    weights = torch.load(os.path.join(config.resources.rl_model_dir, "alphachess_1.pth"))
+
+    shared_model.load_state_dict(weights['state_dict'])
 
     if args.no_shared:
         optimizer = None
@@ -56,9 +58,9 @@ if __name__=="__main__":
         optimizer.share_memory()
 
     processes = []
-
-    step_counter = mp.Value('i', 0)
-    game_counter = mp.Value('i', 0)
+    
+    step_counter = mp.Value('i', weights['step_num'])
+    game_counter = mp.Value('i', weights['game_count'])
     
     lock = mp.Lock()
 

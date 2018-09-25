@@ -33,7 +33,7 @@ class ResourceConfig(object):
 class ModelConfig(object):
     """Model Configuration"""
     cnn_filter_num = 256
-    res_layer_num = 39
+    res_layer_num = 19
     cnn_first_filter_size= 5
     cnn_filter_size = 3
     l2_regularizer = 1e-5
