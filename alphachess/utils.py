@@ -72,6 +72,7 @@ label_len = len(labels)
 
 def evaluate_board(fen):
     chess_piece_value = {'Q' : 14, 'R' : 5, 'B' : 3.25, 'K' : 3, 'N' : 3, 'P' : 1}
+    center = set([chess.D4, chess.D5, chess.E4, chess.E5])
     current_value = 0.0
     total_value = 0.0
     for ch in fen.split(' ')[0]:
@@ -84,9 +85,45 @@ def evaluate_board(fen):
             current_value -= chess_piece_value[ch.upper()]
             total_value += chess_piece_value[ch.upper()]
 
-    value_rate = current_value / total_value
+    chess_board = chess.Board(fen)
 
-    return float(np.tanh(value_rate))
+    move_to_square_weight = 0.05
+
+    for move in chess_board.legal_moves:
+        if move.to_square in center:
+            current_value += (1 if chess_board.turn == chess.WHITE else -1) * move_to_square_weight
+            total_value += move_to_square_weight
+
+    chess_board.push(chess.Move(None, None))
+    for move in chess_board.legal_moves:
+        if move.to_square in center:
+            current_value += (1 if chess_board.turn == chess.WHITE else -1) * move_to_square_weight
+            total_value += move_to_square_weight
+    chess_board.pop()
+
+    mobility = len(list(chess_board.legal_moves)) * (1 if chess_board.turn == chess.WHITE else -1)
+    current_mobility = mobility
+    total_mobility = abs(mobility)
+
+    chess_board.push(chess.Move(None, None))
+    mobility = len(list(chess_board.legal_moves)) * (1 if chess_board.turn == chess.WHITE else -1)
+    chess_board.pop()
+
+    current_mobility += mobility
+    total_mobility += abs(mobility)
+
+    current_value += 1.5 * current_mobility / total_mobility
+    total_value += 1.5
+
+
+
+    value_rate = current_value / total_value
+    '''if is_black_turn(fen):
+        value_rate = -value_rate'''
+
+
+    return float(np.tanh(value_rate * 3))
+
 
 def is_black_turn(fen):
     return fen.split(' ')[1] == 'b'
@@ -153,15 +190,16 @@ def get_auxilary_plane(board_fen):
 
     mobility_plane = np.full((8, 8), len([move for move in board.legal_moves]), dtype=np.float32)
     is_check_plane = np.full((8, 8), int(board.is_check()), dtype=np.float32)
+    turn_plane = np.full((8, 8), int(board.turn), dtype=np.float32)  #表示这棋面下一步谁走 1代表白走，0代表黑走
 
 
     auxilary_plane = np.array([K_castling_plane, Q_castling_plane, k_castling_plane,
                                q_castling_plane, fifty_move_plane, en_passant_plane,
                                total_move_plane, is_gameover_plnae, is_checkmate_plane,
                                is_stalemate_plane, is_insufficient_material_plane, is_seventyfive_moves_material_plane,
-                               is_fivefold_repetition_material_plane, mobility_plane, is_check_plane])
+                               is_fivefold_repetition_material_plane, mobility_plane, is_check_plane,turn_plane])
 
-    assert auxilary_plane.shape == (15, 8, 8)
+    assert auxilary_plane.shape == (16, 8, 8)
     return auxilary_plane
 
 
@@ -171,7 +209,7 @@ def get_feature_plane(board_fen):
     auxilary_plane = get_auxilary_plane(board_fen)
 
     feature_plane = np.vstack((history_plane, auxilary_plane))
-    assert feature_plane.shape == (27, 8, 8)
+    assert feature_plane.shape == (28, 8, 8)
     return feature_plane
 
 def first_person_view_fen(board_fen, flip):
@@ -235,11 +273,17 @@ class ChessDataset(Dataset):
             data['s'] = first_person_view_fen(data['s'], True)
             data['a'] = first_person_view_move(data['a'], True)
 
-        s = self.transform(data['s'])   
+        s, r = self.transform(data['s'], data['r'])   
         a = self.move_hash[data['a']]
-        r = np.array([data['r']], dtype=np.float32)        
+        
         return s, a, r
 
 class GetFeatures(object):
-    def __call__(self, s):
-        return get_feature_plane(s).astype(np.float32)
+    def __call__(self, s, r):
+        round_time = int(s.split(' ')[5])
+        value_weight = min(5, round_time) / 5
+        learning_value = r * value_weight + evaluate_board(s) * (1 - value_weight)
+        
+        return get_feature_plane(s).astype(np.float32), np.array([learning_value], dtype=np.float32)
+
+

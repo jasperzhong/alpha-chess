@@ -46,7 +46,7 @@ class TrainerConfig(object):
     """Training Configuration"""
     batch_size = 4096
     learning_rate = 0.003
-    epoches = 10
+    epoches = 3
     save_interval = 1
     test_interval = 5
 
