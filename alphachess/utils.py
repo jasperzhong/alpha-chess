@@ -273,13 +273,14 @@ class ChessDataset(Dataset):
             data['s'] = first_person_view_fen(data['s'], True)
             data['a'] = first_person_view_move(data['a'], True)
 
-        s, r = self.transform(data['s'], data['r'])   
+        s, r = self.transform((data['s'], data['r']))   
         a = self.move_hash[data['a']]
         
         return s, a, r
 
 class GetFeatures(object):
-    def __call__(self, s, r):
+    def __call__(self, sample):
+        s, r = sample[0], sample[1]
         round_time = int(s.split(' ')[5])
         value_weight = min(5, round_time) / 5
         learning_value = r * value_weight + evaluate_board(s) * (1 - value_weight)

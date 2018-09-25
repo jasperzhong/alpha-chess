@@ -36,7 +36,7 @@ class AlphaChess(nn.Module):
                 4,
                 1
             ),
-            nn.BatchNorm2d(2),
+            nn.BatchNorm2d(4),
             nn.ReLU()
         )
                 
@@ -47,9 +47,9 @@ class AlphaChess(nn.Module):
                 2,
                 1
             ),
-            nn.BatchNorm2d(1),
+            nn.BatchNorm2d(2),
             nn.ReLU()
-        )
+            )
 
         self.policy_linear = nn.Linear(8*8*4, 1968)
 

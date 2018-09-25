@@ -48,7 +48,7 @@ class Trainer(object):
         self.train_size = len(train_idx)
         self.val_size = len(valid_idx)
 
-        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=train_sampler)
+        self.train_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=8, sampler=train_sampler)
         
         self.valid_loader = DataLoader(self.dataset, batch_size=self.config.training.batch_size, num_workers=4, sampler=valid_sampler)
 
@@ -144,7 +144,7 @@ class Trainer(object):
                             logger.info("Epoch %d  Iter %d model saved!" % (epoch, n_iter))
                     
                 
-                if (n_iter + 1) % (1000 + epoch * 1000)== 0:
-                    scheduler.step()
+            # 每一个epoch降低一次lr    
+            scheduler.step()
  
         writer.close()

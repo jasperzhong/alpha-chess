@@ -34,7 +34,7 @@ if __name__=="__main__":
 
     args = parser.parse_args()
 
-
+    os.environ['OMP_NUM_THREADS'] = '1' 
     config.cuda_avaliable = args.no_cuda
     if not config.cuda_avaliable:
         logger.info('CPU is running')

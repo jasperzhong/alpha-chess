@@ -39,13 +39,13 @@ class ModelConfig(object):
     l2_regularizer = 1e-5
     value_fc_size = 256
     drop_out_rate = 0.5
-    features = 27
+    features = 28
 
 
 class TrainerConfig(object):
     """Training Configuration"""
-    batch_size = 4096
-    learning_rate = 0.003
+    batch_size = 8192
+    learning_rate = 0.005
     epoches = 3
     save_interval = 1
     test_interval = 5
