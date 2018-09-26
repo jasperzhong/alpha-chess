@@ -189,7 +189,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
                 torch.save(state, "data/model/rl/alphachess_{0}.pth".format(game_counter.value))
 
 
-def test(rank, args, shared_model,  step_counter, game_counter, writer, lock, config):
+def test(rank, args, shared_model,  step_counter, game_counter, lock, config):
     writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-model-resnet19-policy4-value2-valuefc256".format(
         args.lr, args.gamma, args.num_processes
     ))
