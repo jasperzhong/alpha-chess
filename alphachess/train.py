@@ -61,11 +61,10 @@ class Trainer(object):
             logger.info("mutil gpu %d " % torch.cuda.device_count())
             self.model = nn.DataParallel(self.model)
         self. model.to(device)
-        writer = SummaryWriter()
+        writer = SummaryWriter(log_dir='runs/resnet19-lr0.003-batch8192-policy4-value2-valuefc256')
 
         optimizer = optim.Adam(self.model.parameters(), 
-                               lr=self.config.training.learning_rate,
-                               weight_decay=self.config.training.l2_reg)
+                               lr=self.config.training.learning_rate)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
         policy_loss_func = nn.CrossEntropyLoss()
