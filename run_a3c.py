@@ -63,8 +63,9 @@ if __name__=="__main__":
     
     step_counter = mp.Value('i', weights['step_num'])
     game_counter = mp.Value('i', weights['game_count'])
-    writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-model- \
-    resnet19-policy4-value2-valuefc256")
+    writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-model-resnet19-policy4-value2-valuefc256".format(
+        args.lr, args.gamma, args.num_processes
+    ))
 
     lock = mp.Lock()
 
