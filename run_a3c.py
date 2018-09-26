@@ -69,12 +69,12 @@ if __name__=="__main__":
 
     lock = mp.Lock()
 
-    p = mp.Process(target=test, args=(args.num_processes, args, shared_model, step_counter, game_counter, writer, lock, config))
+    p = mp.Process(target=test, args=(args.num_processes, args, shared_model, step_counter, game_counter, lock, config))
     p.start()
     processes.append(p)
 
     for rank in range(0, args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, shared_model, step_counter, game_counter, writer, lock, config, optimizer))
+        p = mp.Process(target=train, args=(rank, args, shared_model, step_counter, game_counter, lock, config, optimizer))
         p.start()
         processes.append(p)
     for p in processes:

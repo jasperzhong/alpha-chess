@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import chess
 import chess.pgn
 import numpy as np
+from tensorboardX import SummaryWriter
 
 
 from alphachess.model import AlphaChess
@@ -22,7 +23,7 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
-def train(rank, args, shared_model, step_counter, game_counter, writer, lock, config , optimizer=None):
+def train(rank, args, shared_model, step_counter, game_counter, lock, config , optimizer=None):
     '''
     己方永远执白
     '''
@@ -189,6 +190,9 @@ def train(rank, args, shared_model, step_counter, game_counter, writer, lock, co
 
 
 def test(rank, args, shared_model,  step_counter, game_counter, writer, lock, config):
+    writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-model-resnet19-policy4-value2-valuefc256".format(
+        args.lr, args.gamma, args.num_processes
+    ))
     start_time = time.time()
     while True:
         time.sleep(60)
