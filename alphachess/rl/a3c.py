@@ -162,10 +162,10 @@ def train(rank, args, shared_model, step_counter, game_counter, writer, lock, co
         for ent in entropies:
             ent_sum += ent
         
-        with lock:
-            writer.add_scalar("data/a3c/policy_loss", policy_loss.item())
-            writer.add_scalar("data/a3c/value_loss", value_loss.item())
-            writer.add_scalar("data/a3c/entropy", ent_sum.item())
+        
+        print("data/a3c/policy_loss", policy_loss.item())
+        print("data/a3c/value_loss", value_loss.item())
+        print("data/a3c/entropy", ent_sum.item())
         
         policy_loss -=  args.entropy_coef * ent_sum
 
@@ -192,9 +192,8 @@ def test(rank, args, shared_model,  step_counter, game_counter, writer, lock, co
     start_time = time.time()
     while True:
         time.sleep(60)
-        with lock:
-            writer.add_scalar('data/a3c/fps', step_counter.value / (time.time() - start_time))
-            writer.add_scalar('data/a3c/step_num', step_counter.value)
-            writer.add_scalar('data/a3c/game_num', game_counter.value)
+        writer.add_scalar('data/a3c/fps', step_counter.value / (time.time() - start_time))
+        writer.add_scalar('data/a3c/step_num', step_counter.value)
+        writer.add_scalar('data/a3c/game_num', game_counter.value)
  
     writer.close()
