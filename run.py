@@ -30,7 +30,7 @@ if __name__=="__main__":
     parser.add_argument('-lr', type=float, help="learning rate",default=config.training.learning_rate)
     parser.add_argument('-batch_size', type=int, help="batch size",default=config.training.batch_size)
     parser.add_argument('-l2_reg', type=float, help="l2_regulation",default=config.model.l2_regularizer)
-    parser.add_argument('-ch', type=int, help="choise for white or black",default=0)
+    
 
     args = parser.parse_args()
 
@@ -59,6 +59,6 @@ if __name__=="__main__":
     elif args.mode == 'play':
         logger.info('Initializing Player')
         player = Player(config)
-        player.start(args.ch)
+        player.start()
     else:
         raise RuntimeError("Mode %s is undefined." % args.mode)

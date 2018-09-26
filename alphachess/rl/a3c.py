@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import chess
 import chess.pgn
 import numpy as np
-from tensorboardX import SummaryWriter
+
 
 from alphachess.model import AlphaChess
 from alphachess.utils import *
@@ -22,7 +22,7 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
-def train(rank, args, shared_model, step_counter, game_counter, lock, config , optimizer=None):
+def train(rank, args, shared_model, step_counter, game_counter, writer, lock, config , optimizer=None):
     '''
     己方永远执白
     '''
@@ -156,7 +156,18 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             advantage = rewards[i] + args.gamma * values[i + 1] - values[i]
             gae = gae * args.gamma * args.tau + advantage
 
-            policy_loss -= log_probs[i] * gae + args.entropy_coef * entropies[i]  # 熵惩罚项
+            policy_loss -= log_probs[i] * gae   # 熵惩罚项
+
+        ent_sum = 0.0
+        for ent in entropies:
+            ent_sum += entropies
+        
+        with lock:
+            writer.add_scalar("data/a3c/policy_loss", policy_loss.item())
+            writer.add_scalar("data/a3c/value_loss", value_loss.item())
+            writer.add_scalar("data/a3c/entropy", ent_sum.item())
+        
+        policy_loss -=  args.entropy_coef * ent_sum
 
         optimizer.zero_grad()
         loss = policy_loss + args.value_loss_coef * value_loss
@@ -170,21 +181,20 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             game_counter.value += 1
             print(game, file=open("data/self_play/{0}.pgn".format(game_counter.value), "w"), end="\n\n")
             # 每50迭代就更新一次模型
-            if game_counter.value % 50 == 0:
+            if game_counter.value % 500 == 0:
                 state = {"state_dict":shared_model.state_dict(),
                         "game_count":game_counter.value,
                         "step_num":step_counter.value}
                 torch.save(state, "data/model/rl/alphachess_{0}.pth".format(game_counter.value))
 
 
-def test(rank, args, shared_model,  step_counter, game_counter ,lock, config):
-    writer = SummaryWriter()
+def test(rank, args, shared_model,  step_counter, game_counter, writer, lock, config):
     start_time = time.time()
     while True:
         time.sleep(60)
-        writer.add_scalar('data/fps', step_counter.value / (time.time() - start_time))
-        writer.add_scalar('data/step_num', step_counter.value)
-        writer.add_scalar('data/game_num', game_counter.value)
-        #print('fps:', step_counter.value / (time.time() - start_time))
+        with lock:
+            writer.add_scalar('data/a3c/fps', step_counter.value / (time.time() - start_time))
+            writer.add_scalar('data/a3c/step_num', step_counter.value)
+            writer.add_scalar('data/a3c/game_num', game_counter.value)
  
     writer.close()

@@ -8,6 +8,7 @@ import multiprocessing
 
 import numpy as np
 import chess 
+import torch
 
 from .model import AlphaChess
 from .config import Config
@@ -36,104 +37,37 @@ class Player(object):
         self.used_time = 0
         self.INF = 0x3f3f3f3f
 
-    def start(self, choise):
+    def start(self):
         try:
-            self.model = load_model(os.path.join(self.config.resources.best_model_dir, "best_model.h5"))
-            self.value_model = load_model(os.path.join(self.config.resources.best_model_dir, "value.h5"))
+            self.model = AlphaChess(self.config)
+            weights = torch.load(os.path.join(self.config.resources.best_model_dir, "best_model.pth"))
+            self.model.load_state_dict(weights['state_dict'])
             logger.info("Load best model successfully.")
         except OSError:
             logger.fatal("Model cannot find!")
             return
 
         self.board = chess.Board()
-        self.choise = choise
+        
         all_moves = get_all_possible_moves()
         self.move_hash = {move: i for (i, move) in enumerate(all_moves)}
-
-        with open(self.config.playing.oppo_move_dir, "w") as f:
-            f.write('')
-        with open(self.config.playing.ai_move_dir, "w") as f:
-            f.write('')
-
-        pre_oppo_move = None
-        if choise == 1:
-            self.board = chess.Board(first_person_view_fen(self.board.fen(), 1))  #先让黑棋走
-            print(self.board)
-            while True:
-
-                while True:
-                    #ai move
-                    with open(self.config.playing.oppo_move_dir, "r") as f:
-                        opponent_move = f.read()
-                    if opponent_move == pre_oppo_move or not opponent_move:
-                        time.sleep(0.1)
-                    else:
-                        pre_oppo_move = opponent_move
-                        break
-                try:
-                    convert_move = convert_black_uci(opponent_move)
-                    convert_move = self.board.parse_san(convert_move).uci()
-                    convert_move = self.board.parse_uci(convert_move)
-                    break
-                except ValueError:
-                    logger.info("Opponent make a illegal move")
-            logger.info("Your move: %s" % opponent_move)
-            self.board.push(convert_move) # other move.  update board
         
         while not self.board.is_game_over():
-            start = time.time()
-            my_move = self.play()   #get ai move
-            end = time.time()
-
-            with open(self.config.playing.ai_move_dir, "w") as f:
-                if choise == 0:
-                    f.write(my_move.uci())
-                else:
-                    out = self.board.san(my_move)
-                    out = convert_black_uci(out)
-                    f.write(out)
-            self.used_time += end - start
-            print("time: %.2f" % (end - start))
-            #my_move = convert_black_uci(my_move)
-            self.board.push(my_move) # ai move. update board
-            if choise == 1:
-                logger.info("AI move: %s" % convert_black_uci(my_move.uci()))
-            else:
-                logger.info("AI move: %s" % my_move.uci())
-            
+            move = self.play()
+            self.board.push(move)
+            print("AI move: ", move.uci())
             print(self.board)
-            while True:
-                while True:
-                    #ai move
-                    with open(self.config.playing.oppo_move_dir, "r") as f:
-                        opponent_move = f.read()
-                    if opponent_move == pre_oppo_move or not opponent_move:
-                        time.sleep(0.1)
-                    else:
-                        pre_oppo_move = opponent_move
-                        break
-                
-                
-                if opponent_move == "undo": #undo 
-                    self.board.pop()
-                    self.board.pop()
-                    logger.info("Undo done.")
-                    self.moves_cnt -= 1
-                    continue
-                try:
-                    if choise == 1:
-                        convert_move = convert_black_uci(opponent_move)
-                        convert_move = self.board.parse_san(convert_move).uci()
-                    else:
-                        convert_move = self.board.parse_san(opponent_move).uci()
-                    convert_move = self.board.parse_uci(convert_move)
-                    break
-                except ValueError:
-                    logger.info("Opponent make a illegal move")
-            logger.info("Your move: %s" % opponent_move)
-            
-            self.board.push(convert_move) # other move.  update board
 
+            while True:
+                try:
+                    your_move = input()
+                    self.board.push_uci(your_move)
+                    break
+                except Exception as e:
+                    print(e)
+                    continue
+            print("Your move: ", your_move)
+            print(self.board)
     
     def play(self):
         """
@@ -142,37 +76,20 @@ class Player(object):
         相应转换工作在start函数已经完成，这里无需重复考虑
         """
         feature_plane = get_feature_plane(self.board.fen())
-        feature_plane = feature_plane[np.newaxis, :]
-        policy, _ = self.model.predict(feature_plane, batch_size=1)
+        feature_plane = feature_plane[np.newaxis, :].astype(np.float32)
+        policy, v = self.model(torch.from_numpy(feature_plane))
 
         candidates = {}
-        #小于5步(开局)，直接根据policy进行下棋
-        if self.moves_cnt <= 4 or self.used_time >= 569:
-            legal_moves = self.board.legal_moves
-            for move in legal_moves:
-                p = policy[0][self.move_hash[move.uci()]]
-                candidates[move] = p
-            x = sorted(candidates.items(), key=lambda x:x[1], reverse=True)
-        else:
-        #大于5步，根据alpha-beta search的搜索value来下棋
-            self.alpha_beta_search(self.board, self.search_depth, -self.INF, self.INF, 1)  #alpha=-INF, beta=INF, color=1表示是自己
-            max_p = 0.0
-            for move in self.move_value:
-                max_p = max(max_p, policy[0][self.move_hash[move.uci()]])
-
-            for move in self.move_value:
-                v = self.move_value[move]
-                p = policy[0][self.move_hash[move.uci()]]
-                print(move, str(v), str(p))
-                if max_p > 0.2:
-                    if v != self.INF and v != -self.INF:
-                        v = (np.exp(30 * v)) * p
-                candidates[move] = (v, p)
-            x = sorted(candidates.items(), key=lambda x:(x[1][0], x[1][1]), reverse=True)
-           
-        print('moves_cnt: ', self.moves_cnt)
-        self.moves_cnt += 1 #步数+1
-        self.move_value.clear()
+        
+        legal_moves = self.board.legal_moves
+        for move in legal_moves:
+            p = policy[0][self.move_hash[move.uci()]]
+            candidates[move] = p
+        x = sorted(candidates.items(), key=lambda x:x[1], reverse=True)
+        
+        print(x[0][1])
+        print(v.item())
+        
         return x[0][0]  #返回move
 
 

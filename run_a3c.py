@@ -3,14 +3,16 @@ import os
 
 import torch
 import torch.multiprocessing as mp
+from tensorboardX import SummaryWriter
 
 from alphachess.config import Config
 from alphachess.model import AlphaChess
 from alphachess.rl.a3c import test, train
 from alphachess.rl.shared_optim import SharedAdam
 
+
 parser = argparse.ArgumentParser(description='A3C')
-parser.add_argument('--lr', type=float, default=0.002,
+parser.add_argument('--lr', type=float, default=0.0001,
                     help='learning rate (default: 0.002)')
 parser.add_argument('--gamma', type=float, default=0.99,
                     help='discount factor for rewards (default: 0.99)')
@@ -61,15 +63,17 @@ if __name__=="__main__":
     
     step_counter = mp.Value('i', weights['step_num'])
     game_counter = mp.Value('i', weights['game_count'])
-    
+    writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-model- \
+    resnet19-policy4-value2-valuefc256")
+
     lock = mp.Lock()
 
-    p = mp.Process(target=test, args=(args.num_processes, args, shared_model, step_counter, game_counter, lock, config))
+    p = mp.Process(target=test, args=(args.num_processes, args, shared_model, step_counter, game_counter, writer, lock, config))
     p.start()
     processes.append(p)
 
     for rank in range(0, args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, shared_model, step_counter, game_counter, lock, config, optimizer))
+        p = mp.Process(target=train, args=(rank, args, shared_model, step_counter, game_counter, writer, lock, config, optimizer))
         p.start()
         processes.append(p)
     for p in processes:
