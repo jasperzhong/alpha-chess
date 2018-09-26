@@ -160,7 +160,7 @@ def train(rank, args, shared_model, step_counter, game_counter, writer, lock, co
 
         ent_sum = 0.0
         for ent in entropies:
-            ent_sum += entropies
+            ent_sum += ent
         
         with lock:
             writer.add_scalar("data/a3c/policy_loss", policy_loss.item())
