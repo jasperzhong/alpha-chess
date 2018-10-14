@@ -12,15 +12,15 @@ from alphachess.rl.shared_optim import SharedAdam
 
 
 parser = argparse.ArgumentParser(description='A3C')
-parser.add_argument('--lr', type=float, default=0.0001,
+parser.add_argument('--lr', type=float, default=0.00001,
                     help='learning rate (default: 0.002)')
-parser.add_argument('--gamma', type=float, default=0.99,
+parser.add_argument('--gamma', type=float, default=0.95,
                     help='discount factor for rewards (default: 0.99)')
 parser.add_argument('--tau', type=float, default=1.00,
                     help='parameter for GAE (default: 1.00)')
-parser.add_argument('--entropy-coef', type=float, default=0.01,
+parser.add_argument('--entropy-coef', type=float, default=1.0,
                     help='entropy term coefficient (default: 0.01)')
-parser.add_argument('--value-loss-coef', type=float, default=0.5,
+parser.add_argument('--value-loss-coef', type=float, default=10,
                     help='value loss coefficient (default: 0.5)')
 parser.add_argument('--max-grad-norm', type=float, default=50,
                     help='value loss coefficient (default: 50)')
@@ -28,8 +28,8 @@ parser.add_argument('--seed', type=int, default=1,
                     help='random seed (default: 1)')
 parser.add_argument('--num-processes', type=int, default=1,
                     help='how many training processes to use (default: 4)')
-parser.add_argument('--num-steps', type=int, default=75,
-                    help='number of forward steps in A3C (default: 75)')
+parser.add_argument('--num-steps', type=int, default=100,
+                    help='number of forward steps in A3C (default: 100)')
 parser.add_argument('--max-episode-length', type=int, default=1000000,
                     help='maximum length of an episode (default: 1000000)')
 parser.add_argument('--env-name', default='PongDeterministic-v4',

@@ -58,9 +58,9 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
 
         game = chess.pgn.Game()
         node = game
-
+        cnt = 0
         # a new episode start!
-        for step in range(args.num_steps):
+        for i in range(args.num_steps):
             state = get_feature_plane(board.fen())
             state = state[np.newaxis, :].astype(np.float32)
             policy, v = model(torch.from_numpy(state))
@@ -116,7 +116,7 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
                 break
 
             rewards.append(0)   # 下的时候还是0
-            
+            cnt += 1
             with lock:
                 step_counter.value += 1
             
@@ -128,21 +128,11 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             rewards.append(1)
         elif result == "0-1":
             rewards.append(-1)
-        elif result == "1/2-1/2":  # 和棋不进行反向传播
-            continue
-        else:
-            # 看子多子少 很小的一个reward
-            rewards[-1] = evaluate_board(board.fen()) / 10
-        
+        elif result == "1/2-1/2": 
+            rewards.append(0)
         
         # 下完了，反向传播        
-        R = torch.zeros(1, 1)
-        if not board.is_game_over():
-            state = get_feature_plane(board.fen())
-            state = state[np.newaxis, :].astype(np.float32)
-            _, v = model(torch.from_numpy(state))
-            R = v
-        
+        R = torch.zeros(1, 1) 
         values.append(R)
         gae = torch.zeros(1, 1)
         policy_loss = 0
@@ -157,18 +147,17 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
             advantage = rewards[i] + args.gamma * values[i + 1] - values[i]
             gae = gae * args.gamma * args.tau + advantage
 
-            policy_loss -= log_probs[i] * gae   # 熵惩罚项
+            policy_loss -= log_probs[i] * gae
 
         ent_sum = 0.0
         for ent in entropies:
             ent_sum += ent
         
+        with open("/home/zyc/jupyter/fall2018/alpha-chess/log.txt", "a+") as f:
+            f.write("policy_loss:{0} value_loss:{1} entropy:{2} cnt:{3} r:{4}\n".format(
+                    policy_loss.item()/cnt,value_loss.item()/cnt, ent_sum.item()/cnt, cnt, rewards[-1]))
         
-        print("data/a3c/policy_loss", policy_loss.item())
-        print("data/a3c/value_loss", value_loss.item())
-        print("data/a3c/entropy", ent_sum.item())
-        
-        policy_loss -=  args.entropy_coef * ent_sum
+        policy_loss -= args.entropy_coef * ent_sum
 
         optimizer.zero_grad()
         loss = policy_loss + args.value_loss_coef * value_loss
@@ -190,8 +179,8 @@ def train(rank, args, shared_model, step_counter, game_counter, lock, config , o
 
 
 def test(rank, args, shared_model,  step_counter, game_counter, lock, config):
-    writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-model-resnet19-policy4-value2-valuefc256".format(
-        args.lr, args.gamma, args.num_processes
+    writer = SummaryWriter(log_dir="runs/A3C-lr{0}-gamma{1}-process{2}-entropycoef{3}-model-resnet19-policy4-value2-valuefc256-game-over-bp".format(
+        args.lr, args.gamma, args.num_processes, args.entropy_coef
     ))
     start_time = time.time()
     while True:
